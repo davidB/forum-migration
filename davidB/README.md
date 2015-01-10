@@ -132,7 +132,6 @@ you should NOT receive it, an error notification should nbe display on admin pan
 
 Installed stuff is available until you detroy / rebuild the container
 
-
 ```
 # Container as root
 # install mysql2 ruby gem for migration script (take time) a
@@ -144,19 +143,30 @@ echo "gem 'upsert'" >> Gemfile
 bundle install --no-deployment
 ```
 
+## Install stuff to convert post_content
+
+```
+# Container as root
+cd /var/www/discourse/tmp
+git clone https://github.com/nlalonde/ruby-bbcode-to-md.git
+cd ruby-bbcode-to-md
+gem build ruby-bbcode-to-md.gemspec
+gem install ruby-bbcode-to-md-0.0.13.gem
+```
+
+## Run ruby scripts
+
 Create the script as script/import_scripts/bbpress_2.rb
 by default (security) I commented import_XXX instructions
 
 To copy file (bbpress_2.rb) from my desktop (host) to container :
+
 ```
 # desktop as root
 docker ps # to find the "CONTAINER ID"
 cp bbpress_2.rb /var/lib/docker/devicemapper/mnt/_CONTAINER_ID_follow_by_some_ hex/rootfs/var/www/discourse/script/import_scripts
 ```
 And I use up arrow (last command shell history) to update file.
-
-
-Run ruby scripts
 
 ```
 # Container
@@ -165,7 +175,7 @@ su discourse
 
 cd /var/www/discourse
 #RAILS_ENV=production bundle exec ruby script/import_scripts/bbpress_2.rb
-RAILS_ENV=production ruby script/import_scripts/bbpress_2.rb
+RAILS_ENV=production ruby script/import_scripts/bbpress_2.rb bbcode-to-md
 ```
 
 ## Commands

@@ -23,14 +23,14 @@ class ImportScripts::Bbpress < ImportScripts::Base
   end
 
   def execute
-    #create_admin({:email => "david.bernard.31@gmail.com", :username => "myAdmin"})
-    @dummyUsers = create_dummyUsers(60)
-    import_users
-    store_users_mapping
-    import_categories
-    import_posts
-    store_posts_mapping
-    import_likes
+    ##create_admin({:email => "david.bernard.31@gmail.com", :username => "myAdmin"})
+    #@dummyUsers = create_dummyUsers(60)
+    #import_users
+    #store_users_mapping
+    #import_categories
+    #import_posts
+    #store_posts_mapping
+    #import_likes
   end
 
   def create_dummyUsers(nb)
@@ -44,7 +44,8 @@ class ImportScripts::Bbpress < ImportScripts::Base
         :website => "hub.jmonkeyengine.org",
         :email => "contact+#{suffix}@jmonkeyengine.org",
         :created_at => "2015-01-09 00:00:00",
-        :id => -1 * (it + 1)
+        :id => -1 * (it + 1),
+        :password => SecureRandom.uuid,
       }
     }
     create_users(users) do |u|
@@ -101,27 +102,6 @@ class ImportScripts::Bbpress < ImportScripts::Base
     end
   end
 
-  # def store_users_mapping
-  #   puts '', "store mapping : users"
-  #   inserts = []
-  #   @existing_users.each { |k, v|
-  #     #inserts.push "insert into mig_users (ID, discourse_ID) VALUES (#{@client.escape(k)}, #{@client.escape(v)})"
-  #     inserts.push "insert into mig_users (ID, discourse_ID) VALUES (#{k}, #{v})"
-  #     if inserts.length > 1000
-  #       #@client.query(inserts.join(";\n"))
-  #       inserts.each { |stmt| @client.query(stmt)}
-  #       inserts.clear
-  #     end
-  #   }
-  #   if inserts.length > 0
-  #     stmts = inserts.join("\n")
-  #     puts stmts if @test
-  #     #@client.query(stmts)
-  #     inserts.each { |stmt| @client.query(stmt)}
-  #     inserts.clear
-  #   end
-  # end
-
   def store_users_mapping
     Upsert.batch(@client, 'mig_users') do |upsert|
       @existing_users.each { |k, v|
@@ -161,6 +141,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
           post_parent
         from wp_posts
         where post_type in ('topic', 'reply')
+        -- and post_content <>'' -- only post with content
         order by id
         limit #{batch_size} offset #{offset}", cache_rows: false)
 
@@ -173,6 +154,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
         mapped[:id] = post["id"]
         mapped[:user_id] = user_id_from_imported_user_id(post["post_author"]) || find_user_by_import_id(post["post_author"]).try(:id) || -1
         mapped[:raw] = post["post_content"]
+        #puts "raw #{@bbcode_to_md}: #{post["post_title"]}/pc/ #{post["post_content"]} /mr/ #{mapped[:raw]}\n"
         mapped[:created_at] = post["post_date"]
         mapped[:custom_fields] = {import_id: post["id"]}
 
@@ -194,6 +176,10 @@ class ImportScripts::Bbpress < ImportScripts::Base
       end
       break if @test # run only once
     end
+  end
+
+  def created_post(post)
+    # override if needed (eg: update likes)
   end
 
   def store_posts_mapping
