@@ -30,7 +30,6 @@ class ImportScripts::Bbpress < ImportScripts::Base
     #import_categories
     #import_posts
     #store_posts_mapping
-    #import_likes
   end
 
   def create_dummyUsers(nb)
@@ -54,19 +53,6 @@ class ImportScripts::Bbpress < ImportScripts::Base
     nb.times.map{|it| User.find(user_id_from_imported_user_id(-1 * (it + 1)))}
   end
 
-  def import_likes
-    puts '', "experiment increment likes"
-    # post_id = post_id_from_imported_post_id(imported_post_id)
-    post_id = 2
-    post = Post.find(post_id)
-    # user_id = user_id_from_imported_user_id(imported_user_id)
-    #user_id = 1
-    #user = User.find(user_id)
-    # Throw an exception if already liked
-    # /var/www/discourse/app/models/post_action.rb:327:in `block in <class:PostAction>': PostAction::AlreadyActed (PostAction::AlreadyActed)
-    #PostAction.act(user, post, PostActionType.types[:like])
-    set_likes(post, 33)
-  end
 
   def set_likes(post, nb)
     [nb, @dummyUsers.length].min.times.each{ |it|
@@ -177,7 +163,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
 
   def created_post(post)
-    # override if needed (eg: update likes)
+    # set_likes(post, nb_likes)
   end
 
 
