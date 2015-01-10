@@ -4,6 +4,7 @@ require File.expand_path(File.dirname(__FILE__) + "/base.rb")
 BB_PRESS_DB = "bbpress"
 
 require 'mysql2'
+require 'upsert'
 
 class ImportScripts::Bbpress < ImportScripts::Base
 
@@ -17,14 +18,39 @@ class ImportScripts::Bbpress < ImportScripts::Base
       password: "bbpressPwd",
       database: BB_PRESS_DB
     )
+    @test = true
+    @dummyUsers = []
   end
 
   def execute
+    #create_admin({:email => "david.bernard.31@gmail.com", :username => "myAdmin"})
+    @dummyUsers = create_dummyUsers(60)
     import_users
     store_users_mapping
-    # import_categories
-    # import_posts
-    # import_likes
+    import_categories
+    import_posts
+    store_posts_mapping
+    import_likes
+  end
+
+  def create_dummyUsers(nb)
+    puts '', "create #{nb} dummy users (for Likes)"
+    users = nb.times.map{ |it|
+      suffix = (it + 1).to_s.rjust(3, '0')
+      # email should be unique
+      user = {
+        :username => "ILikeWhatYouDo_#{suffix}",
+        :name => "ILikeWhatYouDo_#{suffix}",
+        :website => "hub.jmonkeyengine.org",
+        :email => "contact+#{suffix}@jmonkeyengine.org",
+        :created_at => "2015-01-09 00:00:00",
+        :id => -1 * (it + 1)
+      }
+    }
+    create_users(users) do |u|
+      ActiveSupport::HashWithIndifferentAccess.new(u)
+    end
+    nb.times.map{|it| User.find(user_id_from_imported_user_id(-1 * (it + 1)))}
   end
 
   def import_likes
@@ -33,17 +59,27 @@ class ImportScripts::Bbpress < ImportScripts::Base
     post_id = 2
     post = Post.find(post_id)
     # user_id = user_id_from_imported_user_id(imported_user_id)
-    user_id = 1
-    user = User.find(user_id)
+    #user_id = 1
+    #user = User.find(user_id)
     # Throw an exception if already liked
     # /var/www/discourse/app/models/post_action.rb:327:in `block in <class:PostAction>': PostAction::AlreadyActed (PostAction::AlreadyActed)
-    PostAction.act(user, post, PostActionType.types[:like])
+    #PostAction.act(user, post, PostActionType.types[:like])
+    set_likes(post, 33)
+  end
+
+  def set_likes(post, nb)
+    [nb, @dummyUsers.length].min.times.each{ |it|
+      #user = User.find(-1 * it) # the dummyUsers
+      user = @dummyUsers[it]
+      suppress(PostAction::AlreadyActed) do
+        PostAction.act(user, post, PostActionType.types[:like])
+      end
+    }
   end
 
   def import_users
     puts '', "creating users"
-    #batch_size = 1000
-    batch_size = 10
+    batch_size = @test ? 10 : 1000
 
     batches(batch_size) do |offset|
       results = @client.query("
@@ -61,27 +97,39 @@ class ImportScripts::Bbpress < ImportScripts::Base
       create_users(results) do |u|
         ActiveSupport::HashWithIndifferentAccess.new(u)
       end
-      break # run only once
+      break if @test # run only once
     end
   end
 
+  # def store_users_mapping
+  #   puts '', "store mapping : users"
+  #   inserts = []
+  #   @existing_users.each { |k, v|
+  #     #inserts.push "insert into mig_users (ID, discourse_ID) VALUES (#{@client.escape(k)}, #{@client.escape(v)})"
+  #     inserts.push "insert into mig_users (ID, discourse_ID) VALUES (#{k}, #{v})"
+  #     if inserts.length > 1000
+  #       #@client.query(inserts.join(";\n"))
+  #       inserts.each { |stmt| @client.query(stmt)}
+  #       inserts.clear
+  #     end
+  #   }
+  #   if inserts.length > 0
+  #     stmts = inserts.join("\n")
+  #     puts stmts if @test
+  #     #@client.query(stmts)
+  #     inserts.each { |stmt| @client.query(stmt)}
+  #     inserts.clear
+  #   end
+  # end
+
   def store_users_mapping
-    puts '', "store mapping : users"
-    inserts = []
-    @existing_users.each { |k, v|
-      inserts.push "insert into mig_users (ID, discourse_ID) VALUES (#{k}, #{v})"
-      if inserts.length > 1000
-        @client.query(inserts.join(";\n"))
-        inserts.clear
-      end
-    }
-    if inserts.length > 0
-      query = inserts.join(";\n")
-      puts query
-      #@client.query(query)
-      inserts.clear
+    Upsert.batch(@client, 'mig_users') do |upsert|
+      @existing_users.each { |k, v|
+        upsert.row({:ID => k}, :discourse_ID => v)
+      }
     end
   end
+
 
   def import_categories
     create_categories(@client.query("select id, post_name from wp_posts where post_type = 'forum' and post_name != ''")) do |c|
@@ -99,7 +147,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
        where post_status <> 'spam'
          and post_type in ('topic', 'reply')").first['count']
 
-    batch_size = 1000
+    batch_size = @test ? 10 : 1000
 
     batches(batch_size) do |offset|
       # where post_status <> 'spam'
@@ -144,6 +192,15 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
         skip ? nil : mapped
       end
+      break if @test # run only once
+    end
+  end
+
+  def store_posts_mapping
+    Upsert.batch(@client, 'mig_posts') do |upsert|
+      @existing_posts.each { |k, v|
+        upsert.row({:ID => k}, :discourse_ID => v)
+      }
     end
   end
 
