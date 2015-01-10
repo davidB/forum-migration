@@ -24,9 +24,9 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
   def execute
     ##create_admin({:email => "david.bernard.31@gmail.com", :username => "myAdmin"})
-    #@dummyUsers = create_dummyUsers(60)
-    #import_users
-    #store_users_mapping
+    @dummyUsers = create_dummyUsers(60)
+    import_users
+    store_users_mapping
     #import_categories
     #import_posts
     #store_posts_mapping
@@ -102,12 +102,9 @@ class ImportScripts::Bbpress < ImportScripts::Base
     end
   end
 
+
   def store_users_mapping
-    Upsert.batch(@client, 'mig_users') do |upsert|
-      @existing_users.each { |k, v|
-        upsert.row({:ID => k}, :discourse_ID => v)
-      }
-    end
+    store_mapping(@existing_users, "mig_users")
   end
 
 
@@ -178,13 +175,28 @@ class ImportScripts::Bbpress < ImportScripts::Base
     end
   end
 
+
   def created_post(post)
     # override if needed (eg: update likes)
   end
 
+
   def store_posts_mapping
-    Upsert.batch(@client, 'mig_posts') do |upsert|
-      @existing_posts.each { |k, v|
+    store_mapping(@existing_posts, "mig_posts")
+  end
+
+
+  def store_mapping(kv, tableName)
+    @client.query("CREATE TABLE IF NOT EXISTS #{tableName}
+      (
+       ID bigint NOT NULL,
+       discourse_ID bigint NOT NULL,
+       CONSTRAINT pk_#{tableName}ID PRIMARY KEY (ID),
+       CONSTRAINT ext_#{tableName}ID UNIQUE INDEX (discourse_ID)
+       )
+    ;")
+    Upsert.batch(@client, tableName) do |upsert|
+      kv.each { |k, v|
         upsert.row({:ID => k}, :discourse_ID => v)
       }
     end

@@ -32,7 +32,6 @@ __EOF__
 
 mysql -u bbpressUser --password=bbpressPwd bbpress < jme_dump.sql
 mysql -u bbpressUser --password=bbpressPwd bbpress < purge.sql
-mysql -u bbpressUser --password=bbpressPwd bbpress < mapping_bbpress_discourse.sql
 ```
 
 # SETUP Local Discourse
