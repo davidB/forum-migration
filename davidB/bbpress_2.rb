@@ -52,6 +52,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
       ActiveSupport::HashWithIndifferentAccess.new(u)
     end
     nb.times.map{|it| User.find(user_id_from_imported_user_id(-1 * (it + 1)))}
+	
   end
 
 
@@ -117,16 +118,19 @@ class ImportScripts::Bbpress < ImportScripts::Base
     batches(batch_size) do |offset|
       # where post_status <> 'spam'
       results = @client.query("
-        select id,
-          post_author,
-          post_date,
-          post_content,
-          post_title,
-          post_type,
-          post_parent
-        from wp_posts
-        where post_type in ('topic', 'reply')
-        -- and post_content <>'' -- only post with content
+        select p.id,
+          p.post_author,
+          p.post_date,
+          p.post_content,
+          p.post_title,
+          p.post_type,
+          p.post_parent,
+          CASE WHEN  m.meta_value IS NOT NULL 
+		       THEN GREATEST( CONVERT(m.meta_value,SIGNED INTEGER),0)
+		       ELSE 0
+			 END AS thumbs          
+        from wp_posts p LEFT OUTER JOIN wp_postmeta m ON m.post_id = p.ID and m.meta_key ='bbpress_post_ratings_rating'
+        where post_type in ('topic', 'reply') 
         order by id
         limit #{batch_size} offset #{offset}", cache_rows: false)
 
@@ -164,8 +168,8 @@ class ImportScripts::Bbpress < ImportScripts::Base
   end
 
 
-  def created_post(post)
-    # set_likes(post, nb_likes)
+  def created_post(post, likes)
+     set_likes(post, nb_likes)
   end
 
 
