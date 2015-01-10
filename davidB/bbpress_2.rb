@@ -168,8 +168,10 @@ class ImportScripts::Bbpress < ImportScripts::Base
   end
 
 
-  def created_post(post, likes)
-     set_likes(post, nb_likes)
+  def created_post(post, map)
+	 if map[:thumbs] > 0
+		set_likes(post, map[:thumbs])
+	 end
   end
 
 

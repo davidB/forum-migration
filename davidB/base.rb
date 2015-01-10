@@ -379,7 +379,7 @@ class ImportScripts::Base
     total = opts[:total] || results.size
 
     results.each do |r|
-	  likes = r[:thumbs]
+	  
       params = yield(r)
 
       # block returns nil to skip a post
@@ -401,7 +401,7 @@ class ImportScripts::Base
                 url: new_post.url,
               }
 
-              created_post(new_post, likes)
+              created_post(new_post, r)
 
               created += 1
             else
