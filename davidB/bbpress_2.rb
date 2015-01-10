@@ -24,12 +24,13 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
   def execute
     ##create_admin({:email => "me@gmail.com", :username => "myAdmin"})
-    @dummyUsers = create_dummyUsers(60)
-    import_users
-    store_users_mapping
+    #@dummyUsers = create_dummyUsers(60)
+    #import_users
+    #store_users_mapping
     #import_categories
     #import_posts
     #store_posts_mapping
+    #import_subscriptions
   end
 
   def create_dummyUsers(nb)
@@ -63,6 +64,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
       end
     }
   end
+
 
   def import_users
     puts '', "creating users"
@@ -169,6 +171,53 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
   def store_posts_mapping
     store_mapping(@existing_posts, "mig_posts")
+  end
+
+  def import_subscriptions
+    puts '', "creating subscriptions"
+
+    total = @client.query("
+      select count(*) count
+      from wp_bp_notifications
+      where component_name = 'messages'").first['count']
+    skipped = 0
+    created = 0
+
+    batch_size = @test ? 10 : 1000
+
+    batches(batch_size) do |offset|
+      # where post_status <> 'spam'
+      results = @client.query("
+        select
+          id,
+          user_id,
+          item_id as topic_id
+        from wp_bp_notifications
+        where component_name = 'messages'
+        order by id
+        limit #{batch_size} offset #{offset}", cache_rows: false)
+
+      break if results.size < 1
+      results.each do |r|
+        user_id = user_id_from_imported_user_id(r['user_id'])
+        topic = topic_lookup_from_imported_post_id(r['topic_id'])
+        if topic and user_id
+          set_watching(user_id, topic[:topic_id])
+          created += 1
+        else
+          skipped += 1
+        end
+        print_status skipped + created + (offset || 0), total
+      end
+      break if @test # run only once
+    end
+  end
+
+
+  def set_watching(user_id, topic_id)
+    #from TopicNotifier(topic).change_level(user_id, :watching)
+    attrs = {notification_level: levels[:watching]}
+    TopicUser.change(user_id, topic_id, attrs)
   end
 
 
