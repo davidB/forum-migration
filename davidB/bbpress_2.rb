@@ -23,7 +23,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
   end
 
   def execute
-    ##create_admin({:email => "david.bernard.31@gmail.com", :username => "myAdmin"})
+    ##create_admin({:email => "me@gmail.com", :username => "myAdmin"})
     @dummyUsers = create_dummyUsers(60)
     import_users
     store_users_mapping
