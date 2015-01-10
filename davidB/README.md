@@ -13,6 +13,12 @@ mysql_secure_installation
 systemctl start mysqld
 ```
 
+To avoid the issue "Cannot load from mysql.proc. The table is probably corrupted", that can be raise by mysql2 + upsert
+
+```
+mysql_upgrade -uroot -p
+```
+
 ## Setup bbpress database
 
 I create a working copy of the bbpress DB to migrate:
@@ -134,6 +140,7 @@ apt-get install libmysqlclient-dev
 # bundle exec gem install mysql2
 cd /var/www/discourse
 echo "gem 'mysql2'" >> Gemfile
+echo "gem 'upsert'" >> Gemfile
 bundle install --no-deployment
 ```
 
@@ -161,7 +168,17 @@ cd /var/www/discourse
 RAILS_ENV=production ruby script/import_scripts/bbpress_2.rb
 ```
 
+## Commands
+
+*  to reset your database
+  ```
+  bundle exec rake db:drop db:create db:migrate.
+  ```
+
 # Links
 
 * https://meta.discourse.org/t/how-to-run-an-import-script-in-docker/21599/8
 * https://meta.discourse.org/t/paid-need-a-vanilla-2-import-tool/14852/23
+* https://meta.discourse.org/t/re-importing-data-after-migration/22058/2
+* https://meta.discourse.org/t/advanced-troubleshooting-with-docker/15927
+* https://meta.discourse.org/t/redirecting-old-forum-urls-to-new-discourse-urls/20930
