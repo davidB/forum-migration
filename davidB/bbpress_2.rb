@@ -30,6 +30,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
     #import_categories
     #import_posts
     #store_posts_mapping
+    import_likes
     #import_subscriptions
   end
 
@@ -171,6 +172,49 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
   def store_posts_mapping
     store_mapping(@existing_posts, "mig_posts")
+  end
+
+
+  def import_likes
+    puts '', "creating likes (from dummyUsers)"
+
+    total = @client.query("
+      select count(*) count
+      from wp_postmeta m
+      where m.meta_key ='bbpress_post_ratings_rating'
+        and m.meta_value > 0
+      ").first['count']
+    skipped = 0
+    created = 0
+
+    batch_size = @test ? 100 : 1000
+
+    batches(batch_size) do |offset|
+      # where post_status <> 'spam'
+      results = @client.query("
+        select
+          m.post_id post_id,
+          CONVERT(m.meta_value,SIGNED INTEGER) thumbs
+        from wp_postmeta m
+        where m.meta_key ='bbpress_post_ratings_rating'
+          and m.meta_value > 0
+        order by post_id
+        limit #{batch_size} offset #{offset}", cache_rows: false)
+
+      break if results.size < 1
+      results.each do |r|
+        post_id = post_id_from_imported_post_id(r['post_id'])
+        nb_likes = r['thumbs']
+        if post_id
+          set_likes(Post.find(post_id), nb_likes)
+          created += 1
+        else
+          skipped += 1
+        end
+        print_status skipped + created + (offset || 0), total
+      end
+      break if @test # run only once
+    end
   end
 
   def import_subscriptions
