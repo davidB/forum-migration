@@ -133,7 +133,7 @@ Installed stuff is available until you detroy / rebuild the container
 
 ```
 # Container as root
-# install mysql2 ruby gem for migration script (take time) a
+# install mysql2 ruby gem for migration script (take time)
 apt-get install libmysqlclient-dev
 # bundle exec gem install mysql2
 cd /var/www/discourse
