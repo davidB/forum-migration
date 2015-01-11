@@ -186,6 +186,14 @@ cd /var/www/discourse
 RAILS_ENV=production rails c </tmp/bbpress_redirection.rb
 ```
 
+## Post import
+
+When happy with the import's result:
+
+1. backup in discourse
+2. check that backup is not in the container
+3. restore the backup into your target (production) discourse instance OR into the rebuilded discourse container to have a clean install.
+
 ## Commands
 
 *  to reset your database
