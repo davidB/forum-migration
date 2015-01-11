@@ -20,6 +20,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
     )
     @test = true
     @dummyUsers = []
+    @redirections = []
   end
 
   def execute
@@ -30,9 +31,11 @@ class ImportScripts::Bbpress < ImportScripts::Base
     #import_categories
     #import_posts
     #store_posts_mapping
-    import_likes
+    #import_likes
     #import_subscriptions
+    #generate_redirect
   end
+
 
   def create_dummyUsers(nb)
     puts '', "create #{nb} dummy users (for Likes)"
@@ -53,7 +56,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
       ActiveSupport::HashWithIndifferentAccess.new(u)
     end
     nb.times.map{|it| User.find(user_id_from_imported_user_id(-1 * (it + 1)))}
-	
+
   end
 
 
@@ -70,7 +73,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
   def import_users
     puts '', "creating users"
-    batch_size = @test ? 10 : 1000
+    batch_size = @test ? 100 : 1000
 
     batches(batch_size) do |offset|
       results = @client.query("
@@ -114,7 +117,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
        where post_status <> 'spam'
          and post_type in ('topic', 'reply')").first['count']
 
-    batch_size = @test ? 10 : 1000
+    batch_size = @test ? 100 : 1000
 
     batches(batch_size) do |offset|
       # where post_status <> 'spam'
@@ -125,13 +128,14 @@ class ImportScripts::Bbpress < ImportScripts::Base
           p.post_content,
           p.post_title,
           p.post_type,
+          p.post_name,
           p.post_parent,
-          CASE WHEN  m.meta_value IS NOT NULL 
+          CASE WHEN  m.meta_value IS NOT NULL
 		       THEN GREATEST( CONVERT(m.meta_value,SIGNED INTEGER),0)
 		       ELSE 0
-			 END AS thumbs          
+			 END AS thumbs
         from wp_posts p LEFT OUTER JOIN wp_postmeta m ON m.post_id = p.ID and m.meta_key ='bbpress_post_ratings_rating'
-        where post_type in ('topic', 'reply') 
+        where post_type in ('topic', 'reply')
         order by id
         limit #{batch_size} offset #{offset}", cache_rows: false)
 
@@ -168,11 +172,11 @@ class ImportScripts::Bbpress < ImportScripts::Base
     end
   end
 
-
   def created_post(post, map)
-	 if map[:thumbs] > 0
-		set_likes(post, map[:thumbs])
-	 end
+	  if (map['thumbs'] || 0 ) > 0
+      set_likes(post, map['thumbs'])
+    end
+    #redirect_post(post.id, map)
   end
 
 
@@ -217,7 +221,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
         else
           skipped += 1
         end
-        print_status skipped + created + (offset || 0), total
+        print_status created + (offset || 0), total, skipped
       end
       break if @test # run only once
     end
@@ -257,7 +261,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
         else
           skipped += 1
         end
-        print_status skipped + created + (offset || 0), total
+        print_status created, total, skipped
       end
       break if @test # run only once
     end
@@ -268,6 +272,89 @@ class ImportScripts::Bbpress < ImportScripts::Base
     #from TopicNotifier(topic).change_level(user_id, :watching)
     attrs = {notification_level: levels[:watching]}
     TopicUser.change(user_id, topic_id, attrs)
+  end
+
+  def generate_redirect
+    puts '', "generate redirect for topics and posts"
+    created = 0
+    skipped = 0
+    failure = 0
+    total = @client.query("
+      select count(*) count
+        from wp_posts
+       where post_status <> 'spam'
+         and post_type in ('topic', 'reply')").first['count']
+
+    batch_size = @test ? 1000 : 1000
+
+    batches(batch_size) do |offset|
+      # where post_status <> 'spam'
+      results = @client.query("
+        select id,
+          post_type,
+          post_name
+        from wp_posts
+        where post_type in ('topic', 'reply')
+        order by id
+        limit #{batch_size} offset #{offset}", cache_rows: false)
+
+      break if results.size < 1
+      results.each do |r|
+        post_id = post_id_from_imported_post_id(r['id'])
+        if post_id
+          if redirect_post(post_id, r)
+            created += 1
+          else
+            failure += 1
+          end
+        else
+          # no post_id
+          skipped += 1
+        end
+      end
+      print_status created, total, skipped, failure
+      break if @test # run only once
+    end
+    File.open("/tmp/redirection_#{BB_PRESS_DB}.rb", 'w') { |file|
+      @redirections.each { |l|
+        file.puts(l)
+      }
+    }
+  end
+
+
+  def redirect_post(post_id, map)
+    #puts "redirect_post : #{map['id']} // #{map['post_name']} // #{map[:post_name]}"
+    if map['post_type'] == 'topic'
+      redirect("/forum/topic/#{map['post_name']}/", post_id)
+      redirect("/forum/topic/#{map['post_name']}/##{map['id']}", post_id)
+      true
+    else
+      if map['post_name'] =~ /^reply-to-(.*)?$/
+        topic_name = $1
+        reply_nb = 1
+        if map['post_name'] =~ /^reply-to-(.*)(-(\d+))$/
+          topic_name = $1
+          reply_nb = $3
+        end
+        page = ((reply_nb+1) / 15) + 1
+        if page < 2
+          redirect("/forum/topic/#{topic_name}/#{page}/##{map['id']}", post_id)
+        else
+          redirect("/forum/topic/#{topic_name}/##{map['id']}", post_id)
+        end
+        true
+      else
+        false
+      end
+    end
+  end
+
+
+  def redirect(oldpath, post_id)
+    cmd = "Permalink.create(url: \"#{oldpath}\", post_id: #{post_id})"
+    @redirections.push(cmd)
+    #Permalink.create(url: oldpath, post_id: post_id)
   end
 
 

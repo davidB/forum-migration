@@ -193,7 +193,7 @@ class ImportScripts::Base
         end
       end
 
-      print_status groups_created + groups_skipped + @failed_groups.length + (opts[:offset] || 0), total
+      print_status groups_created + (opts[:offset] || 0), total, groups_skipped, @failed_groups.length
     end
 
     return [groups_created, groups_skipped]
@@ -253,7 +253,7 @@ class ImportScripts::Base
         end
       end
 
-      print_status users_created + users_skipped + @failed_users.length + (opts[:offset] || 0), total
+      print_status users_created + (opts[:offset] || 0), total, users_skipped, @failed_users.length
     end
 
     return [users_created, users_skipped]
@@ -364,7 +364,7 @@ class ImportScripts::Base
     new_category
   end
 
-  def created_post(post)
+  def created_post(post, r)
     # override if needed
   end
 
@@ -379,7 +379,7 @@ class ImportScripts::Base
     total = opts[:total] || results.size
 
     results.each do |r|
-	  
+
       params = yield(r)
 
       # block returns nil to skip a post
@@ -421,7 +421,7 @@ class ImportScripts::Base
         end
       end
 
-      print_status skipped + created + (opts[:offset] || 0), total
+      print_status created + (opts[:offset] || 0), total, skipped
     end
 
     return [created, skipped]
@@ -553,8 +553,8 @@ class ImportScripts::Base
     end
   end
 
-  def print_status(current, max)
-    print "\r%9d / %d (%5.1f%%)  " % [current, max, ((current.to_f / max.to_f) * 100).round(1)]
+  def print_status(current, max, skipped = 0, failed = 0)
+    print "\r%9d (OK) %6d (Skip) %6d (Failed) / %d (%5.1f%%)  " % [current, skipped, failed, max, (((current + skipped + failed).to_f / max.to_f) * 100).round(1)]
   end
 
   def batches(batch_size)
