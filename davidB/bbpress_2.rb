@@ -18,7 +18,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
       password: "bbpressPwd",
       database: BB_PRESS_DB
     )
-    @timestamp = Time.now.utc.iso8601.gsub('-', '').gsub(':', '')
+    @filepathbase ="/shared/backups/#{BB_PRESS_DB}_#{Time.now.utc.iso8601.gsub('-', '').gsub(':', '')}_"
     # dummyUsers used to like
     @dummyUsers = []
     # test = true => will only import a fargment (~10 items per import) of data
@@ -334,7 +334,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
       break if @test # run only once
     end
     if @redirections_collect
-      File.open("/tmp/#{BB_PRESS_DB}_#{@timestamp}_redirection.rb", 'w') { |file|
+      File.open("#{@filepathbase}redirection.rb", 'w') { |file|
         @redirections.each { |l|
           file.puts(l)
         }
@@ -407,7 +407,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
         }
       end
     else
-      File.open("/tmp/#{BB_PRESS_DB}_#{@timestamp}_#{tableName}.csv", 'w') { |file|
+      File.open("#{@filepathbase}#{tableName}.csv", 'w') { |file|
         kv.each { |k, v|
           file.puts("#{k},#{v}")
         }
