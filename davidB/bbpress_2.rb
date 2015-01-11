@@ -18,7 +18,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
       password: "bbpressPwd",
       database: BB_PRESS_DB
     )
-    @test = true
+    @test = false
     @dummyUsers = []
     @redirections = []
     @redirections_collect = false
@@ -26,15 +26,20 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
   def execute
     ##create_admin({:email => "me@gmail.com", :username => "myAdmin"})
-    #@dummyUsers = create_dummyUsers(60)
-    #import_users
-    #store_users_mapping
-    #import_categories
-    #import_posts
-    #store_posts_mapping
+    @dummyUsers = create_dummyUsers(60)
+    import_users
+    store_users_mapping
+    import_categories
+    import_posts
+    store_posts_mapping
     #import_likes
-    #import_subscriptions
-    generate_redirect
+    import_subscriptions
+    # using rewrite on http front end seems to work better than creating Permalink
+    #  location ~ ^/forum/ {
+    #    rewrite ^/forum/topic/([^/]*)/.*$ /t/$1/ permanent;
+    #    return 403;
+    #  }
+    #generate_redirect
   end
 
 
@@ -342,11 +347,11 @@ class ImportScripts::Bbpress < ImportScripts::Base
         reply_nb = 1
         if map['post_name'] =~ /^reply-to-(.*)(-(\d+))$/
           topic_name = $1
-          reply_nb = $3
+          reply_nb = $3.to_i
         end
         page = ((reply_nb+1) / 15) + 1
         if page < 2
-          redirect("forum/topic/#{topic_name}/#{page}/#post-#{map['id']}", post_id)
+          redirect("forum/topic/#{topic_name}/page/#{page}/#post-#{map['id']}", post_id)
         else
           redirect("forum/topic/#{topic_name}/#post-#{map['id']}", post_id)
         end
@@ -377,6 +382,8 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
 
   def store_mapping(kv, tableName)
+    puts '', "store mapping in #{tableName}"
+
     @client.query("CREATE TABLE IF NOT EXISTS #{tableName}
       (
        ID bigint NOT NULL,
