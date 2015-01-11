@@ -159,6 +159,7 @@ Create the script as script/import_scripts/bbpress_2.rb
 by default (security) I commented import_XXX instructions
 
 To copy file (bbpress_2.rb) from my desktop (host) to container :
+see stackoverflow :[copying-files-from-host-to-docker-container](http://stackoverflow.com/questions/22907231/copying-files-from-host-to-docker-container)
 
 ```
 # desktop as root
