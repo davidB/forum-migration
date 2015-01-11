@@ -189,13 +189,21 @@ RAILS_ENV=production rails c </tmp/redirection_bbpress.rb
 ## Commands
 
 *  to reset your database
+  Grant superuser rold to discourse account in postgres to avoid issues like :
+
+  * Peer authentication failed for user "discourse"
+  * permission denied to create extension hstore (or pg_trgm )
+
   ```
   # Container as root
-  # grant power to discourse account
   su postgres
   psql -c 'ALTER ROLE discourse SUPERUSER'
   exit
+  ```
 
+  Reset the db with service stopped
+  ```
+  # Container as root
   sv stop unicorn  # stop discourse service inside the container
   su discourse
   cd /var/www/discourse
