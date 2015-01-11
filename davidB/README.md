@@ -190,7 +190,18 @@ RAILS_ENV=production rails c </tmp/redirection_bbpress.rb
 
 *  to reset your database
   ```
-  bundle exec rake db:drop db:create db:migrate.
+  # Container as root
+  # grant power to discourse account
+  su postgres
+  psql -c 'ALTER ROLE discourse SUPERUSER'
+  exit
+
+  sv stop unicorn  # stop discourse service inside the container
+  su discourse
+  cd /var/www/discourse
+  RAILS_ENV=production bundle exec rake db:drop db:create db:migrate
+  exit
+  sv start unicorn
   ```
 
 # Links
