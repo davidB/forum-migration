@@ -327,7 +327,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
     #puts "redirect_post : #{map['id']} // #{map['post_name']} // #{map[:post_name]}"
     if map['post_type'] == 'topic'
       redirect("/forum/topic/#{map['post_name']}/", post_id)
-      redirect("/forum/topic/#{map['post_name']}/##{map['id']}", post_id)
+      redirect("/forum/topic/#{map['post_name']}/#post-#{map['id']}", post_id)
       true
     else
       if map['post_name'] =~ /^reply-to-(.*)?$/
@@ -339,9 +339,9 @@ class ImportScripts::Bbpress < ImportScripts::Base
         end
         page = ((reply_nb+1) / 15) + 1
         if page < 2
-          redirect("/forum/topic/#{topic_name}/#{page}/##{map['id']}", post_id)
+          redirect("/forum/topic/#{topic_name}/#{page}/#post-#{map['id']}", post_id)
         else
-          redirect("/forum/topic/#{topic_name}/##{map['id']}", post_id)
+          redirect("/forum/topic/#{topic_name}/#post-#{map['id']}", post_id)
         end
         true
       else
