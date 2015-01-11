@@ -18,10 +18,19 @@ class ImportScripts::Bbpress < ImportScripts::Base
       password: "bbpressPwd",
       database: BB_PRESS_DB
     )
-    @test = false
+    @timestamp = Time.now.utc.iso8601.gsub('-', '').gsub(':', '')
+    # dummyUsers used to like
     @dummyUsers = []
-    @redirections = []
+    # test = true => will only import a fargment (~10 items per import) of data
+    @test = false
+    # when generate_redirect : should redirection be collected in memory and store in files (.rb) or applied to db ?
     @redirections_collect = false
+    # memory store of redirection to dump in a file, used by collector
+    @redirections = []
+    # likes should be imported via import_likes (batch) or with import_posts
+    @import_likes_batch = false
+    # store id mapping (bbpress, discourse) for users and posts in the bbpress db or in files
+    @store_mapping_in_db = false
   end
 
   def execute
@@ -32,7 +41,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
     import_categories
     import_posts
     store_posts_mapping
-    #import_likes
+    import_likes if @import_likes_batch
     import_subscriptions
     # using rewrite on http front end seems to work better than creating Permalink
     #  location ~ ^/forum/ {
@@ -179,7 +188,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
   end
 
   def created_post(post, map)
-	  if (map['thumbs'] || 0 ) > 0
+    if not @import_likes_batch and (map['thumbs'] || 0 ) > 0
       set_likes(post, map['thumbs'])
     end
     #redirect_post(post.id, map)
@@ -325,7 +334,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
       break if @test # run only once
     end
     if @redirections_collect
-      File.open("/tmp/redirection_#{BB_PRESS_DB}.rb", 'w') { |file|
+      File.open("/tmp/#{BB_PRESS_DB}_#{@timestamp}_redirection.rb", 'w') { |file|
         @redirections.each { |l|
           file.puts(l)
         }
@@ -383,18 +392,25 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
   def store_mapping(kv, tableName)
     puts '', "store mapping in #{tableName}"
-
-    @client.query("CREATE TABLE IF NOT EXISTS #{tableName}
-      (
-       ID bigint NOT NULL,
-       discourse_ID bigint NOT NULL,
-       CONSTRAINT pk_#{tableName}ID PRIMARY KEY (ID),
-       CONSTRAINT ext_#{tableName}ID UNIQUE INDEX (discourse_ID)
-       )
-    ;")
-    Upsert.batch(@client, tableName) do |upsert|
-      kv.each { |k, v|
-        upsert.row({:ID => k}, :discourse_ID => v)
+    if @store_mapping_in_db
+      @client.query("CREATE TABLE IF NOT EXISTS #{tableName}
+        (
+         ID bigint NOT NULL,
+         discourse_ID bigint NOT NULL,
+         CONSTRAINT pk_#{tableName}ID PRIMARY KEY (ID),
+         CONSTRAINT ext_#{tableName}ID UNIQUE INDEX (discourse_ID)
+         )
+      ;")
+      Upsert.batch(@client, tableName) do |upsert|
+        kv.each { |k, v|
+          upsert.row({:ID => k}, :discourse_ID => v)
+        }
+      end
+    else
+      File.open("/tmp/#{BB_PRESS_DB}_#{@timestamp}_#{tableName}.csv", 'w') { |file|
+        kv.each { |k, v|
+          file.puts("#{k},#{v}")
+        }
       }
     end
   end

@@ -183,7 +183,7 @@ If you change the method redirect(oldpath, post_id) to collect rules instead of 
 su discourse
 cd /var/www/discourse
 
-RAILS_ENV=production rails c </tmp/redirection_bbpress.rb
+RAILS_ENV=production rails c </tmp/bbpress_redirection.rb
 ```
 
 ## Commands
