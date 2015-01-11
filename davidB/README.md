@@ -158,13 +158,13 @@ gem install ruby-bbcode-to-md-0.0.13.gem
 Create the script as script/import_scripts/bbpress_2.rb
 by default (security) I commented import_XXX instructions
 
-To copy file (bbpress_2.rb) from my desktop (host) to container :
+To copy files (**bbpress_2.rb + base.rb**) from my desktop (host) to container :
 see stackoverflow :[copying-files-from-host-to-docker-container](http://stackoverflow.com/questions/22907231/copying-files-from-host-to-docker-container)
 
 ```
 # desktop as root
 docker ps # to find the "CONTAINER ID"
-cp bbpress_2.rb /var/lib/docker/devicemapper/mnt/_CONTAINER_ID_follow_by_some_ hex/rootfs/var/www/discourse/script/import_scripts
+cp *.rb /var/lib/docker/devicemapper/mnt/_CONTAINER_ID_follow_by_some_ hex/rootfs/var/www/discourse/script/import_scripts
 ```
 And I use up arrow (last command shell history) to update file.
 
