@@ -21,6 +21,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
     @test = true
     @dummyUsers = []
     @redirections = []
+    @redirections_collect = false
   end
 
   def execute
@@ -33,7 +34,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
     #store_posts_mapping
     #import_likes
     #import_subscriptions
-    #generate_redirect
+    generate_redirect
   end
 
 
@@ -302,8 +303,11 @@ class ImportScripts::Bbpress < ImportScripts::Base
       results.each do |r|
         post_id = post_id_from_imported_post_id(r['id'])
         if post_id
-          if redirect_post(post_id, r)
+          case redirect_post(post_id, r)
+          when :done
             created += 1
+          when :skipped
+            skipped += 1
           else
             failure += 1
           end
@@ -315,20 +319,23 @@ class ImportScripts::Bbpress < ImportScripts::Base
       print_status created, total, skipped, failure
       break if @test # run only once
     end
-    File.open("/tmp/redirection_#{BB_PRESS_DB}.rb", 'w') { |file|
-      @redirections.each { |l|
-        file.puts(l)
+    if @redirections_collect
+      File.open("/tmp/redirection_#{BB_PRESS_DB}.rb", 'w') { |file|
+        @redirections.each { |l|
+          file.puts(l)
+        }
       }
-    }
+    end
   end
 
 
   def redirect_post(post_id, map)
     #puts "redirect_post : #{map['id']} // #{map['post_name']} // #{map[:post_name]}"
     if map['post_type'] == 'topic'
-      redirect("/forum/topic/#{map['post_name']}/", post_id)
-      redirect("/forum/topic/#{map['post_name']}/#post-#{map['id']}", post_id)
-      true
+      # remove ending '/' : redirection ending by '/' doesn't works with discourse
+      # remove starting '/' : automaticly done by Permalink.create but not by Permalink.where
+      redirect("forum/topic/#{map['post_name']}", post_id)
+      redirect("forum/topic/#{map['post_name']}/#post-#{map['id']}", post_id)
     else
       if map['post_name'] =~ /^reply-to-(.*)?$/
         topic_name = $1
@@ -339,22 +346,33 @@ class ImportScripts::Bbpress < ImportScripts::Base
         end
         page = ((reply_nb+1) / 15) + 1
         if page < 2
-          redirect("/forum/topic/#{topic_name}/#{page}/#post-#{map['id']}", post_id)
+          redirect("forum/topic/#{topic_name}/#{page}/#post-#{map['id']}", post_id)
         else
-          redirect("/forum/topic/#{topic_name}/#post-#{map['id']}", post_id)
+          redirect("forum/topic/#{topic_name}/#post-#{map['id']}", post_id)
         end
-        true
       else
-        false
+        :failed
       end
     end
   end
 
 
+  # see https://meta.discourse.org/t/redirecting-old-forum-urls-to-new-discourse-urls/20930
   def redirect(oldpath, post_id)
-    cmd = "Permalink.create(url: \"#{oldpath}\", post_id: #{post_id})"
-    @redirections.push(cmd)
-    #Permalink.create(url: oldpath, post_id: post_id)
+    if @redirections_collect
+      # Collect redirections (eg: for later store in file)
+      cmd = "unless Permalink.where(url:  \"#{oldpath}\", post_id: #{post_id}).exists? ; Permalink.create(url: \"#{oldpath}\", post_id: #{post_id}) ; end"
+      @redirections.push(cmd)
+      :done
+    else
+      # Apply Redirection
+      if Permalink.where(url: oldpath, post_id: post_id).exists?
+        :skipped
+      else
+        Permalink.create(url: oldpath, post_id: post_id)
+        :done
+      end
+    end
   end
 
 
