@@ -79,7 +79,7 @@ As I use my gmail address, I'll use smtp server from google for initial activati
   DISCOURSE_SMTP_PASSWORD: *********             # (optional)
 ```
 
-to prepare the migration, forward access of container port 3306 to host port 3306 so script in container can access mysql:
+to prepare the migration, forward access of container port 3306 to host port 3306 so script in container can access my local mysql (on host):
 I replaced a line around 487 in /var/discourse_docker/launcher (to allow docker to access local mysql):
 
     exec ssh -o StrictHostKeyChecking=no root@${split[0]} -p ${split[1]}
@@ -96,7 +96,7 @@ cd /var/discourse_docker
 ```
 
 Try access `open http://discourse.localhost/`
-register an account with the your developer email (eg: me@gmail.com) You should not receive activation email.
+register an account with the your developer email (eg: me@gmail.com) You should not receive activation email. (see Commands below for an alternative way to activate account, without smtp server).
 
 Open a shell into container
 ```
@@ -127,6 +127,12 @@ sv restart unicorn  # restart discourse service inside the container
 
 Re-open http://discourse.localhost/, log-in, open admin panel > email, send a test email
 you should NOT receive it, an error notification should nbe display on admin panel
+
+## Setup to speed migration
+
+By default discourse download images on local, including remote image links, gavatar,... This step could take lot of time after the end of the migration script.
+I suggest you to **disable download remote images to local** for migration:
+[Admin/Settings/Files](http://discourse.localhost/admin/site_settings/category/files). After the migration, you can re-enable it.
 
 ## Install stuff for migration from mysql
 
@@ -221,7 +227,7 @@ When happy with the import's result:
   sv start unicorn
   ```
 
-* to activate an account without email
+* to activate an account without "sending activation email" (or using smtp server)
   ```
   # Container as root
   cd /var/www/discourse
