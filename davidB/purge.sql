@@ -24,11 +24,10 @@ delete from wp_posts where post_status='spam' ;
 delete from wp_postmeta where post_id not in (select ID from wp_posts);
 
 #delete posts with empty content
-delete from wp_posts where post_type in ('topic', 'reply') and post_content = ''
+delete from wp_posts where post_type in ('topic', 'reply') and (post_content = '' OR post_content IS NULL);
 
 #select users whose last activity was before 01/01/2013 (around 3K users) Shall we delete them?
 #select u.user_login, a.date_recorded from wp_bp_activity a, wp_users u where a.type='last_activity' and u.ID=a.user_id and a.date_recorded<'2012-01-01' order by a.date_recorded desc;
 
 
 commit;
-
