@@ -258,3 +258,4 @@ When happy with the import's result:
 * https://meta.discourse.org/t/redirecting-old-forum-urls-to-new-discourse-urls/20930
 * https://meta.discourse.org/t/advanced-troubleshooting-with-docker/15927
 * https://meta.discourse.org/t/activate-user-on-a-non-configurated-email-server/9494
+* https://meta.discourse.org/t/programmatically-adjusting-color-variables-with-sass/18332 to choose your colors
