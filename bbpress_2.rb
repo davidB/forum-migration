@@ -42,7 +42,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
     import_posts
     store_posts_mapping
     import_likes if @import_likes_batch
-    import_subscriptions
+    #import_subscriptions
     # using rewrite on http front end seems to work better than creating Permalink
     #  location ~ ^/forum/ {
     #    rewrite ^/forum/topic/([^/]*)/.*$ /t/$1/ permanent;
@@ -162,7 +162,7 @@ class ImportScripts::Bbpress < ImportScripts::Base
 
         mapped[:id] = post["id"]
         mapped[:user_id] = user_id_from_imported_user_id(post["post_author"]) || find_user_by_import_id(post["post_author"]).try(:id) || -1
-        mapped[:raw] = post["post_content"]
+        mapped[:raw] = post["post_content"] || ''
         #puts "raw #{@bbcode_to_md}: #{post["post_title"]}/pc/ #{post["post_content"]} /mr/ #{mapped[:raw]}\n"
         mapped[:created_at] = post["post_date"]
         mapped[:custom_fields] = {import_id: post["id"]}
