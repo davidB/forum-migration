@@ -1,5 +1,10 @@
 
-This my notes about migration.
+This is my notes about migration from bbpress to discourse.
+We used a customized script :
+* to includes likes (done by fake users)
+* generate files with mapping bbpress id / discourse id, to be able to update some data after main migration
+* generate Redirection for Discourse (alternative: to configure an url rewrite rule)
+* convert subscriptions into watching (we didn't run it at end)
 
 # SETUP Local Mysql DB to store bbpress data
 
@@ -31,7 +36,7 @@ CREATE DATABASE bbpress;
 GRANT ALL PRIVILEGES ON bbpress.* TO 'bbpressUser'@'localhost' WITH GRANT OPTION;
 __EOF__
 
-mysql -u bbpressUser --password=bbpressPwd bbpress < jme_dump.sql
+mysql -u bbpressUser --password=bbpressPwd bbpress < latestdump.sql
 mysql -u bbpressUser --password=bbpressPwd bbpress < purge.sql
 ```
 
@@ -50,7 +55,7 @@ systemctl start docker
 ## Install discourse-docker
 
 Install discourse on docker (see https://github.com/discourse/discourse/blob/master/docs/INSTALL-digital-ocean.md )
-but don't call "./launcher bootstrap app" before reading the following note
+but don't call "./launcher bootstrap app" before reading the following note to avoid sending email to users during test/migration.
 
 I added discourse.localhost in my /etc/host
 ```
