@@ -26,6 +26,7 @@ I create a working copy of the bbpress DB to migrate:
 ```
 mysql -u root -p << __EOF__
 CREATE USER 'bbpressUser'@'localhost' IDENTIFIED BY 'bbpressPwd';
+DROP DATABASE IF EXISTS bbpress;
 CREATE DATABASE bbpress;
 GRANT ALL PRIVILEGES ON bbpress.* TO 'bbpressUser'@'localhost' WITH GRANT OPTION;
 __EOF__
@@ -220,6 +221,23 @@ When happy with the import's result:
   sv start unicorn
   ```
 
+* to activate an account without email
+  ```
+  # Container as root
+  cd /var/www/discourse
+  su discourse
+  RAILS_ENV=production bundle exec rails c
+
+  irb> u = User.find_by_username_or_email('myemailaddress@me.com')
+  irb> u.password = "azertyuiop"
+  irb> u.activate
+  irb> u.admin = true
+  irb> u.save
+  ```
+
+  Wait few minutes, try to log-in on web.
+  If discourse say "blabla activation email", wait, reload page, retry (you can do  som ` u.activate`)
+
 # Links
 
 * https://meta.discourse.org/t/how-to-run-an-import-script-in-docker/21599/8
@@ -227,3 +245,5 @@ When happy with the import's result:
 * https://meta.discourse.org/t/re-importing-data-after-migration/22058/2
 * https://meta.discourse.org/t/advanced-troubleshooting-with-docker/15927
 * https://meta.discourse.org/t/redirecting-old-forum-urls-to-new-discourse-urls/20930
+* https://meta.discourse.org/t/advanced-troubleshooting-with-docker/15927
+* https://meta.discourse.org/t/activate-user-on-a-non-configurated-email-server/9494
