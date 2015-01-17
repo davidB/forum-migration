@@ -203,8 +203,13 @@ RAILS_ENV=production rails c </tmp/bbpress_redirection.rb
 When happy with the import's result:
 
 1. backup in discourse
-2. check that backup is not in the container
+2. check that backup is not in the container, but on the host hdd (available when container is stopped)
 3. restore the backup into your target (production) discourse instance OR into the rebuilded discourse container to have a clean install.
+4. personnalize, customize settings
+  * visual: colors, logo, css, ...
+  * badges, categories, groups, ...
+  * ...
+5. backup again to keep customization
 
 ## Commands
 
@@ -248,6 +253,41 @@ When happy with the import's result:
 
   Wait few minutes, try to log-in on web.
   If discourse say "blabla activation email", wait, reload page, retry (you can do  som ` u.activate`)
+
+* Rewrite rules for nginx, to redirect your old/previous url
+  In the container, try rules by editing `/etc/nginx/conf.d/discourse.conf` and restart nginx via 'sv restart nginx'.
+  But to keep rules over a container rebuild, you should create a template in `discourse_docker/templates/web.rewriteurl.template.yml` (like the file in this project)
+  ```
+  params:
+
+  run:
+    - replace:
+       filename: "/etc/nginx/conf.d/discourse.conf"
+       from: /server.+{/
+       to: |
+         server {
+           location /forum/ {
+             rewrite ^/forum/topic/([^/]*)/.*$ /t/$1/ permanent;
+             rewrite ^/forum/.*$ / permanent;
+             return 403;
+           }
+           rewrite ^/wiki/(.*)$ http://wiki.jmonkeyengine.org/$1 permanent;
+  ```
+  Then add this file in the list of template in `discourse_docker/containers/app.yml`
+  ```
+  templates:
+    - "templates/postgres.template.yml"
+    - "templates/redis.template.yml"
+    - "templates/web.template.yml"
+    - "templates/sshd.template.yml"
+    - "templates/web.ratelimited.template.yml"
+    - "templates/web.rewriteurl.template.yml"
+  ```
+  Now you can rebuild
+  ```
+  cd discourse_docker
+  ./launcher rebuild app
+  ```
 
 # Links
 

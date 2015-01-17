@@ -1,0 +1,14 @@
+params:
+
+run:
+  - replace:
+     filename: "/etc/nginx/conf.d/discourse.conf"
+     from: /server.+{/
+     to: |
+       server {
+         location /forum/ {
+           rewrite ^/forum/topic/([^/]*)/.*$ /t/$1/ permanent;
+           rewrite ^/forum/.*$ / permanent;
+           return 403;
+         }
+         rewrite ^/wiki/(.*)$ http://wiki.jmonkeyengine.org/$1 permanent;
